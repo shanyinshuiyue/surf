@@ -356,7 +356,7 @@ begin
          rxMmcmLockedIn   => pgpRxMmcmLocked,
          rxUserResetIn    => gtRxUserReset,
          rxResetDoneOut   => gtRxResetDone,                -- Use for rxRecClkReset???
-         rxDataValidIn    => '1',       -- From 8b10b
+         rxDataValidIn    => dataValidTmp,       -- From 8b10b
          rxSlideIn        => '0',       -- Slide is controlled internally
          rxDataOut        => gtRxData,
          rxCharIsKOut     => open,      -- Not using gt rx 8b10b
