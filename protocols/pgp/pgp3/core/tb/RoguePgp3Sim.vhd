@@ -1,4 +1,6 @@
 -------------------------------------------------------------------------------
+-- Title      : PGPv3: https://confluence.slac.stanford.edu/x/OndODQ
+-------------------------------------------------------------------------------
 -- File       : RoguePgp3Sim.vhd
 -- Company    : SLAC National Accelerator Laboratory
 -------------------------------------------------------------------------------
@@ -22,9 +24,6 @@ use work.StdRtlPkg.all;
 use work.AxiLitePkg.all;
 use work.AxiStreamPkg.all;
 use work.Pgp3Pkg.all;
-
-library unisim;
-use unisim.vcomponents.all;
 
 entity RoguePgp3Sim is
    generic (

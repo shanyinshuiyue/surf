@@ -1,4 +1,6 @@
 -------------------------------------------------------------------------------
+-- Title      : PGPv2b: https://confluence.slac.stanford.edu/x/q86fD
+-------------------------------------------------------------------------------
 -- File       : RoguePgp2bSim.vhd
 -- Company    : SLAC National Accelerator Laboratory
 -------------------------------------------------------------------------------
@@ -22,9 +24,6 @@ use work.StdRtlPkg.all;
 use work.AxiLitePkg.all;
 use work.AxiStreamPkg.all;
 use work.Pgp2bPkg.all;
-
-library unisim;
-use unisim.vcomponents.all;
 
 entity RoguePgp2bSim is
    generic (

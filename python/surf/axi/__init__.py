@@ -9,11 +9,13 @@
 ## the terms contained in the LICENSE.txt file.
 ##############################################################################
 from surf.axi._AxiLiteEmpty                 import *
+from surf.axi._AxiLiteRingBuffer            import *
 from surf.axi._AxiMemTester                 import *
 from surf.axi._AxiStreamDmaRingWrite        import *
 from surf.axi._AxiStreamMonitoring          import *
 from surf.axi._AxiVersion                   import *
 from surf.axi._AxiVersionLegacy             import *
+from surf.axi._AxiStreamDmaFifo             import *
 from surf.axi._AxiStreamDmaV2               import *
 from surf.axi._AxiStreamScatterGather       import *
 
