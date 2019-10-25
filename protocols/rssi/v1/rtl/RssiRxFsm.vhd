@@ -79,6 +79,7 @@ entity RssiRxFsm is
       rxSeqN_o     : out slv(7 downto 0);
 
       -- Current received ackN
+      rxAck_o      : out sl;
       rxAckN_o     : out slv(7 downto 0);
       
       -- Last seqN received and sent to application (this is the ackN transmitted)
@@ -192,6 +193,8 @@ architecture rtl of RssiRxFsm is
       -----------------------------------------------------------
       txSegmentAddr  : slv(SEGMENT_ADDR_SIZE_G downto 0);
       rxLastSeqN     : slv(7 downto 0);
+      rxLastAckN     : slv(7 downto 0);
+      rxLastAck      : sl;
       nextRd         : slv(WINDOW_ADDR_SIZE_G-1 downto 0);
       rxSeqNDbg      : slv(WINDOW_ADDR_SIZE_G-1 downto 0);
       
@@ -249,6 +252,8 @@ architecture rtl of RssiRxFsm is
       -----------------------------------------------------------
       txSegmentAddr => (others => '0'),
       rxLastSeqN => (others => '0'),
+      rxLastAckN => (others => '0'),
+      rxLastAck  => '0',
       nextRd => (others => '0'),
       rxSeqNDbg => (others => '0'),
       
@@ -284,7 +289,8 @@ begin
    begin
       v := r;
 
-      v.pending := 0;
+      v.rxLastAck := '0'; 
+      v.pending   := 0;
       for i in 0 to 2 ** WINDOW_ADDR_SIZE_G-1 loop
          if (r.windowArray(i).occupied = '1') then
             v.pending := v.pending + 1;
@@ -572,6 +578,7 @@ begin
             if (connActive_i = '0' and  r.rxF.syn = '1') then
                v.rxF.ack  := r.rxF.ack;
                v.rxLastSeqN    := r.rxSeqN;
+               v.rxLastAckN    := r.rxAckN;
                v.windowArray  := REG_INIT_C.windowArray;
                
             -- Check if next valid SEQn is received. If yes:
@@ -580,6 +587,7 @@ begin
             -- 3. increase buffer
             elsif (r.rxF.data = '1' or r.rxF.nul = '1' or r.rxF.rst = '1' ) then
                v.windowArray(wrIdx).seqN       := r.rxSeqN;
+               v.windowArray(wrIdx).ackN       := r.rxAckN;
                v.windowArray(wrIdx).segType(0) := r.rxF.data;               
                v.windowArray(wrIdx).segType(1) := r.rxF.nul;
                v.windowArray(wrIdx).segType(2) := r.rxF.rst;
@@ -732,6 +740,8 @@ begin
             
             -- Register the sent SeqN (this means that the place has been freed and the SeqN can be Acked)
             v.rxLastSeqN    := r.windowArray(rdIdx).seqN;
+            v.rxLastAckN    := r.windowArray(rdIdx).ackN;
+            v.rxLastAck     := '1'; 
 
             -- Release buffer
             v.windowArray(rdIdx).occupied := '0'; 
@@ -777,7 +787,8 @@ begin
       rxFlags_o      <= r.rxF;
       rxSeqN_o       <= r.rxSeqN;
       rxLastSeqN_o   <= r.rxLastSeqN;
-      rxAckN_o       <= r.rxAckN;
+      rxAck_o        <= r.rxLastAck and connActive_i;
+      rxAckN_o       <= r.rxLastAckN;
       rxValidSeg_o   <= r.segValid;
       rxDropSeg_o    <= r.segDrop;
       chksumEnable_o <= r.chkEn;

@@ -94,6 +94,7 @@ package RssiPkg is
 
    type WindowType is record
       seqN     : slv(7 downto 0);
+      ackN     : slv(7 downto 0);
       segType  : slv(2 downto 0);
       keep     : slv(RSSI_WORD_WIDTH_C-1 downto 0);
       segSize  : natural;
@@ -102,6 +103,7 @@ package RssiPkg is
 
    constant WINDOW_INIT_C : WindowType := (
       seqN     => (others => '0'),
+      ackN     => (others => '0'),
       segType  => (others => '0'),
       keep     => (others => '1'),
       segSize  => 0,

@@ -746,6 +746,7 @@ begin
          txWindowSize_i => s_txWindowSize,
          lastAckN_i     => s_rxLastAckN,  --
          rxLastSeqN_o   => s_rxLastSeqN,
+         rxAck_o        => s_rxAck,
          rxAckN_o       => s_rxAckN,
          rxValidSeg_o   => s_rxValidSeg,
          rxDropSeg_o    => s_rxDropSeg,
@@ -832,8 +833,8 @@ begin
 
    end generate;
    
-   -- Acknowledge valid packet
-   s_rxAck <= s_rxValidSeg and s_rxFlags.ack and s_connActive;
+   -- -- Acknowledge valid packet
+   -- s_rxAck <= s_rxValidSeg and s_rxFlags.ack and s_connActive;
 
    rx_Chksum_INST : entity work.RssiChksum
       generic map (
