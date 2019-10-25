@@ -32,6 +32,8 @@ end RssiInterleaveTb;
 
 architecture testbed of RssiInterleaveTb is
 
+   constant EN_ROGUE_TCP_C : boolean := true;
+
    constant CLK_PERIOD_C     : time     := 10 ns;  -- 1 us makes it easy to count clock cycles in sim GUI
    constant TPD_G            : time     := CLK_PERIOD_C/4;
    constant PRBS_SEED_SIZE_C : positive := 128;
@@ -45,26 +47,45 @@ architecture testbed of RssiInterleaveTb is
    constant CLT_MAX_SEG_SIZE_C     : positive         := 1024;  -- RSSI config
 
    constant APP_STREAMS_C : positive := 5;
+   -- constant APP_STREAMS_C : positive := 1;
+   
+   function getTdest return Slv8Array is
+      variable retConf : Slv8Array(APP_STREAMS_C-1 downto 0);
+   begin
+      for i in APP_STREAMS_C-1 downto 0 loop
+         retConf(i) := toSlv(i, 8);
+      end loop;
 
-   constant SRV_AXIS_CONFIG_C : AxiStreamConfigArray(APP_STREAMS_C-1 downto 0) := (
+      return retConf;
+   end function;   
+   constant APP_STREAM_ROUTES_C  : Slv8Array := getTdest;   
+
+   constant SRV_AXIS_CONFIG_C : AxiStreamConfigArray(4 downto 0) := (
       0 => ssiAxiStreamConfig(1),
       1 => ssiAxiStreamConfig(2),
       2 => ssiAxiStreamConfig(4),
       3 => ssiAxiStreamConfig(8),
       4 => ssiAxiStreamConfig(16));
 
-   constant CLT_AXIS_CONFIG_C : AxiStreamConfigArray(APP_STREAMS_C-1 downto 0) := (
+   constant CLT_AXIS_CONFIG_C : AxiStreamConfigArray(4 downto 0) := (
       0 => ssiAxiStreamConfig(16),
       1 => ssiAxiStreamConfig(8),
       2 => ssiAxiStreamConfig(4),
       3 => ssiAxiStreamConfig(2),
       4 => ssiAxiStreamConfig(1));
 
-   signal clk        : sl              := '0';
-   signal rst        : sl              := '1';
-   signal linkUp     : slv(1 downto 0) := "00";
-   signal tspMasters : AxiStreamMasterArray(1 downto 0);
-   signal tspSlaves  : AxiStreamSlaveArray(1 downto 0);
+   signal clk    : sl              := '0';
+   signal rst    : sl              := '1';
+   signal linkUp : slv(1 downto 0) := "00";
+
+   signal srvTspTxMaster : AxiStreamMasterType;
+   signal srvTspTxSlave  : AxiStreamSlaveType;
+   signal srvTspRxMaster : AxiStreamMasterType;
+   signal srvTspRxSlave  : AxiStreamSlaveType;
+   signal cltTspTxMaster : AxiStreamMasterType;
+   signal cltTspTxSlave  : AxiStreamSlaveType;
+   signal cltTspRxMaster : AxiStreamMasterType;
+   signal cltTspRxSlave  : AxiStreamSlaveType;
 
    signal srvIbMasters : AxiStreamMasterArray(APP_STREAMS_C-1 downto 0) := (others => AXI_STREAM_MASTER_INIT_C);
    signal srvIbSlaves  : AxiStreamSlaveArray(APP_STREAMS_C-1 downto 0)  := (others => AXI_STREAM_SLAVE_FORCE_C);
@@ -145,12 +166,7 @@ begin
          SERVER_G            => true,                -- Server
          APP_ILEAVE_EN_G     => true,
          APP_STREAMS_G       => APP_STREAMS_C,
-         APP_STREAM_ROUTES_G => (
-            0                => X"00",
-            1                => X"01",
-            2                => X"02",
-            3                => X"03",
-            4                => X"04"),
+         APP_STREAM_ROUTES_G => APP_STREAM_ROUTES_C,
          TIMEOUT_UNIT_G      => 1.0E-6,
          CLK_FREQUENCY_G     => 100.0E+6,
          MAX_SEG_SIZE_G      => SRV_MAX_SEG_SIZE_C,  -- Using Jumbo frames
@@ -173,10 +189,55 @@ begin
          mAppAxisMasters_o => srvObMasters,
          mAppAxisSlaves_i  => srvObSlaves,
          -- Transport Layer Interface
-         sTspAxisMaster_i  => tspMasters(0),
-         sTspAxisSlave_o   => tspSlaves(0),
-         mTspAxisMaster_o  => tspMasters(1),
-         mTspAxisSlave_i   => tspSlaves(1));
+         sTspAxisMaster_i  => srvTspRxMaster,
+         sTspAxisSlave_o   => srvTspRxSlave,
+         mTspAxisMaster_o  => srvTspTxMaster,
+         mTspAxisSlave_i   => srvTspTxSlave);
+
+
+   BYP_ROGUE_TCP : if (EN_ROGUE_TCP_C = false) generate
+
+      srvTspRxMaster <= cltTspTxMaster;
+      cltTspTxSlave  <= srvTspRxSlave;
+
+      cltTspRxMaster <= srvTspTxMaster;
+      srvTspTxSlave  <= cltTspRxSlave;
+
+   end generate;
+
+   GEN_ROGUE_TCP : if (EN_ROGUE_TCP_C = true) generate
+
+      U_SRV_ROGUE_TCP : entity work.RogueTcpStreamWrap
+         generic map (
+            TPD_G         => TPD_G,
+            PORT_NUM_G    => 9000,
+            SSI_EN_G      => true,
+            CHAN_COUNT_G  => 1,
+            AXIS_CONFIG_G => RSSI_AXIS_CONFIG_C)
+         port map (
+            axisClk     => clk,
+            axisRst     => rst,
+            sAxisMaster => srvTspTxMaster,
+            sAxisSlave  => srvTspTxSlave,
+            mAxisMaster => srvTspRxMaster,
+            mAxisSlave  => srvTspRxSlave);
+
+      U_CLT_ROGUE_TCP : entity work.RogueTcpStreamWrap
+         generic map (
+            TPD_G         => TPD_G,
+            PORT_NUM_G    => 9002,
+            SSI_EN_G      => true,
+            CHAN_COUNT_G  => 1,
+            AXIS_CONFIG_G => RSSI_AXIS_CONFIG_C)
+         port map (
+            axisClk     => clk,
+            axisRst     => rst,
+            sAxisMaster => cltTspTxMaster,
+            sAxisSlave  => cltTspTxSlave,
+            mAxisMaster => cltTspRxMaster,
+            mAxisSlave  => cltTspRxSlave);
+
+   end generate;
 
    --------------
    -- RSSI Client
@@ -187,12 +248,7 @@ begin
          SERVER_G            => false,               -- Client
          APP_ILEAVE_EN_G     => true,
          APP_STREAMS_G       => APP_STREAMS_C,
-         APP_STREAM_ROUTES_G => (
-            0                => X"00",
-            1                => X"01",
-            2                => X"02",
-            3                => X"03",
-            4                => X"04"),
+         APP_STREAM_ROUTES_G => APP_STREAM_ROUTES_C,
          TIMEOUT_UNIT_G      => 1.0E-6,
          CLK_FREQUENCY_G     => 100.0E+6,
          MAX_SEG_SIZE_G      => CLT_MAX_SEG_SIZE_C,  -- Using Jumbo frames
@@ -215,10 +271,10 @@ begin
          mAppAxisMasters_o => cltObMasters,
          mAppAxisSlaves_i  => cltObSlaves,
          -- Transport Layer Interface
-         sTspAxisMaster_i  => tspMasters(1),
-         sTspAxisSlave_o   => tspSlaves(1),
-         mTspAxisMaster_o  => tspMasters(0),
-         mTspAxisSlave_i   => tspSlaves(0));
+         sTspAxisMaster_i  => cltTspRxMaster,
+         sTspAxisSlave_o   => cltTspRxSlave,
+         mTspAxisMaster_o  => cltTspTxMaster,
+         mTspAxisSlave_i   => cltTspTxSlave);
 
    GEN_CLT_DEV :
    for i in 0 to APP_STREAMS_C-1 generate
