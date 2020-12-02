@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 -- Company    : SLAC National Accelerator Laboratory
 -------------------------------------------------------------------------------
--- Description: DSP Package File
+-- Description: DSP Float Package File
 -------------------------------------------------------------------------------
 -- This file is part of 'SLAC Firmware Standard Library'.
 -- It is subject to the license terms in the LICENSE.txt file found in the
@@ -18,7 +18,7 @@ use ieee.std_logic_1164.all;
 use ieee.fixed_float_types.all;
 use ieee.float_pkg.all;
 
-package DspPkg is
+package DspFloatPkg is
 
    -- IEEE 754 half precision: https://en.wikipedia.org/wiki/Half-precision_floating-point_format
    subtype UNRESOLVED_float16 is UNRESOLVED_float (5 downto -10);
@@ -42,8 +42,8 @@ package DspPkg is
    constant FP128_NEG_ONE_C : float128 := x"bfff0000000000000000000000000000";
    constant FP128_POS_ONE_C : float128 := x"3fff0000000000000000000000000000";
 
-end package DspPkg;
+end package DspFloatPkg;
 
-package body DspPkg is
+package body DspFloatPkg is
 
-end package body DspPkg;
+end package body DspFloatPkg;
