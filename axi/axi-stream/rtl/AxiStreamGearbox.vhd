@@ -301,7 +301,9 @@ begin
          end if;
 
          if (MASTER_AXI_CONFIG_G.TKEEP_MODE_C = TKEEP_COUNT_C) then
-            pipeAxisMaster.tKeep <= toSlv(getTKeep(resize(r.tKeep(1*MST_BYTES_C-1 downto 0), AXI_STREAM_MAX_TKEEP_WIDTH_C), MASTER_AXI_CONFIG_G), AXI_STREAM_MAX_TKEEP_WIDTH_C);
+            pipeAxisMaster.tKeep <= toSlv(getTKeep(resize(
+               r.tKeep(1*MST_BYTES_C-1 downto 0), bitSize(MASTER_AXI_CONFIG_G.TDATA_BYTES_C)),
+                                                   MASTER_AXI_CONFIG_G), bitSize(MASTER_AXI_CONFIG_G.TDATA_BYTES_C));
          else
             pipeAxisMaster.tKeep                           <= (others => '0');
             pipeAxisMaster.tKeep(1*MST_BYTES_C-1 downto 0) <= r.tKeep(1*MST_BYTES_C-1 downto 0);

@@ -29,24 +29,31 @@ package AxiStreamPkg is
 
    type AxiStreamMasterType is record
       tValid : sl;
-      tData  : slv(AXI_STREAM_MAX_TDATA_WIDTH_C-1 downto 0);
-      tStrb  : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
-      tKeep  : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
+      tData  : slv;
+      tStrb  : slv;
+      tKeep  : slv;
       tLast  : sl;
-      tDest  : slv(7 downto 0);
-      tId    : slv(7 downto 0);
-      tUser  : slv(AXI_STREAM_MAX_TDATA_WIDTH_C-1 downto 0);
+      tDest  : slv;
+      tId    : slv;
+      tUser  : slv;
    end record AxiStreamMasterType;
 
-   constant AXI_STREAM_MASTER_INIT_C : AxiStreamMasterType := (
-      tValid => '0',
-      tData  => (others => '0'),
-      tStrb  => (others => '1'),
-      tKeep  => (others => '1'),
-      tLast  => '0',
-      tDest  => (others => '0'),
-      tId    => (others => '0'),
-      tUser  => (others => '0'));
+   constant AXI_STREAM_MASTER_INIT_C : AxiStreamMasterType(
+      tData(AXI_STREAM_MAX_TDATA_WIDTH_C-1 downto 0),
+      tStrb(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0),
+      tKeep(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0),
+      tDest(7 downto 0),
+      tId(7 downto 0),
+      tUser(AXI_STREAM_MAX_TDATA_WIDTH_C-1 downto 0)) := (
+         tValid => '0',
+         tData  => (others => '0'),
+         tStrb  => (others => '1'),
+         tKeep  => (others => '1'),
+         tLast  => '0',
+         tDest  => (others => '0'),
+         tId    => (others => '0'),
+         tUser  => (others => '0'));
+
    type AxiStreamMasterArray is array (natural range<>) of AxiStreamMasterType;
    type AxiStreamMasterVectorArray is array (natural range<>, natural range<>) of AxiStreamMasterType;
    subtype AxiStreamDualMasterType is AxiStreamMasterArray(1 downto 0);
@@ -81,24 +88,24 @@ package AxiStreamPkg is
 
    type AxiStreamConfigType is record
       -- TDEST_INTERLEAVE_C : boolean;
-      TSTRB_EN_C         : boolean;
-      TDATA_BYTES_C      : natural range 1 to AXI_STREAM_MAX_TKEEP_WIDTH_C;
-      TDEST_BITS_C       : natural range 0 to 8;
-      TID_BITS_C         : natural range 0 to 8;
-      TKEEP_MODE_C       : TkeepModeType;
-      TUSER_BITS_C       : natural range 0 to 8;
-      TUSER_MODE_C       : TUserModeType;
+      TSTRB_EN_C    : boolean;
+      TDATA_BYTES_C : natural;
+      TDEST_BITS_C  : natural range 0 to 8;
+      TID_BITS_C    : natural range 0 to 8;
+      TKEEP_MODE_C  : TkeepModeType;
+      TUSER_BITS_C  : natural range 0 to 8;
+      TUSER_MODE_C  : TUserModeType;
    end record AxiStreamConfigType;
 
    constant AXI_STREAM_CONFIG_INIT_C : AxiStreamConfigType := (
       -- TDEST_INTERLEAVE_C => true,
-      TSTRB_EN_C         => false,
-      TDATA_BYTES_C      => 16,
-      TDEST_BITS_C       => 4,
-      TID_BITS_C         => 0,
-      TKEEP_MODE_C       => TKEEP_NORMAL_C,
-      TUSER_BITS_C       => 4,
-      TUSER_MODE_C       => TUSER_NORMAL_C);
+      TSTRB_EN_C    => false,
+      TDATA_BYTES_C => 16,
+      TDEST_BITS_C  => 4,
+      TID_BITS_C    => 0,
+      TKEEP_MODE_C  => TKEEP_NORMAL_C,
+      TUSER_BITS_C  => 4,
+      TUSER_MODE_C  => TUSER_NORMAL_C);
 
    type AxiStreamConfigArray is array (natural range<>) of AxiStreamConfigType;
    type AxiStreamConfigVectorArray is array (natural range<>, natural range<>) of AxiStreamConfigType;
@@ -184,7 +191,7 @@ package AxiStreamPkg is
    function ite(i : boolean; t : TUserModeType; e : TUserModeType) return TUserModeType;
    function ite(i : boolean; t : TKeepModeType; e : TKeepModeType) return TKeepModeType;
 
-   function genTKeep (bytes           : natural range 0 to AXI_STREAM_MAX_TKEEP_WIDTH_C) return slv;
+   function genTKeep (bytes           : natural) return slv;
    function genTKeep (constant config : AxiStreamConfigType) return slv;
 
    function getTKeep (tKeep : slv; axisConfig : AxiStreamConfigType) return natural;
@@ -194,11 +201,27 @@ end package AxiStreamPkg;
 package body AxiStreamPkg is
 
    function axiStreamMasterInit (constant config : AxiStreamConfigType) return AxiStreamMasterType is
-      variable ret : AxiStreamMasterType;
+      -- Return a constrained AxiStreamMasterType based on the configuration
+      variable ret : AxiStreamMasterType(
+         tData(config.TDATA_BYTES_C*8-1 downto 0),
+         tStrb(ite(config.TKEEP_MODE_C = TKEEP_COUNT_C,
+                   bitSize(config.TDATA_BYTES_C)-1,
+                   config.TDATA_BYTES_C-1) downto 0),
+         tKeep(ite(config.TKEEP_MODE_C = TKEEP_COUNT_C,
+                   bitSize(config.TDATA_BYTES_C)-1,
+                   config.TDATA_BYTES_C-1) downto 0),
+         tDest(config.TDEST_BITS_C-1 downto 0),
+         tId(config.TID_BITS_C-1 downto 0),
+         tUser(config.TDATA_BYTES_C*config.TUSER_BITS_C-1 downto 0));
    begin
-      ret       := AXI_STREAM_MASTER_INIT_C;
-      ret.tKeep := genTKeep(config);
-      ret.tStrb := genTKeep(config);
+      ret.tValid := '0';
+      ret.tData  := (others => '0');
+      ret.tStrb  := genTKeep(config);
+      ret.tKeep  := genTKeep(config);
+      ret.tLast  := '0';
+      ret.tDest  := (others => '0');
+      ret.tId    := (others => '0');
+      ret.tUser  := (others => '0');
       return ret;
    end function axiStreamMasterInit;
 
@@ -225,7 +248,6 @@ package body AxiStreamPkg is
 
       variable ret : integer;
    begin
-
       if bytePos = -1 then
          ret := getTKeep(axisMaster.tKeep, axisConfig)-1;
          if (ret > axisConfig.TDATA_BYTES_C) then
@@ -250,14 +272,12 @@ package body AxiStreamPkg is
       variable pos : integer;
       variable ret : slv(maximum(axisConfig.TUSER_BITS_C-1, 0) downto 0);
    begin
-
       pos := axiStreamGetUserPos(axisConfig, axisMaster, bytePos);
-
       ret := ite(axisConfig.TUSER_BITS_C > 0,
-                 axisMaster.tUser((axisConfig.TUSER_BITS_C*pos)+axisConfig.TUSER_BITS_C-1 downto ((axisConfig.TUSER_BITS_C*pos))),
+                 axisMaster.tUser((axisConfig.TUSER_BITS_C*pos)+axisConfig.TUSER_BITS_C-1 downto (axisConfig.TUSER_BITS_C*pos)),
                  "0");
 
-      -- Handle TUSER_BITS_C=0 case
+                                        -- Handle TUSER_BITS_C=0 case
       if (axisConfig.TUSER_BITS_C = 0 or axisConfig.TUSER_MODE_C = TUSER_NONE_C) then
          ret := (others => '0');
       end if;
@@ -274,8 +294,7 @@ package body AxiStreamPkg is
 
       variable user : slv(maximum(axisConfig.TUSER_BITS_C-1, 0) downto 0);
    begin
-
-      user := axiStreamGetuserField(axisConfig, axisMaster, bytePos);
+      user := axiStreamGetUserField(axisConfig, axisMaster, bytePos);
       return(user(bitPos));
 
    end function;
@@ -288,12 +307,10 @@ package body AxiStreamPkg is
 
       variable pos : integer;
    begin
-
       pos := axiStreamGetUserPos(axisConfig, axisMaster, bytePos);
 
       if (axisConfig.TUSER_BITS_C > 0 and axisConfig.TUSER_MODE_C /= TUSER_NONE_C) then
-         axisMaster.tUser((axisConfig.TUSER_BITS_C*pos)+axisConfig.TUSER_BITS_C-1 downto
-                          ((axisConfig.TUSER_BITS_C*pos))) := fieldValue;
+         axisMaster.tUser((axisConfig.TUSER_BITS_C*pos)+axisConfig.TUSER_BITS_C-1 downto (axisConfig.TUSER_BITS_C*pos)) := fieldValue;
       else
          axisMaster.tUser := (others => '0');
       end if;
@@ -309,7 +326,6 @@ package body AxiStreamPkg is
 
       variable pos : integer;
    begin
-
       pos := axiStreamGetUserPos(axisConfig, axisMaster, bytePos);
 
       axisMaster.tUser((axisConfig.TUSER_BITS_C*pos) + bitPos) := bitValue;
@@ -346,12 +362,12 @@ package body AxiStreamPkg is
       if (i) then return t; else return e; end if;
    end function ite;
 
-   function genTKeep (bytes : natural range 0 to AXI_STREAM_MAX_TKEEP_WIDTH_C) return slv is
-      variable retVar : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
+   function genTKeep (bytes : natural) return slv is
+      variable retVar : slv(bytes-1 downto 0);
    begin
       retVar := (others => '0');
       if bytes /= 0 then
-         -- Assumes TKEEP_MODE_C /= TKEEP_COUNT_C
+                                        -- Assumes TKEEP_MODE_C /= TKEEP_COUNT_C
          retVar(bytes-1 downto 0) := (others => '1');
       end if;
       return retVar;
@@ -359,33 +375,33 @@ package body AxiStreamPkg is
 
    function genTKeep (constant config : AxiStreamConfigType) return slv is
    begin
-      -- Assumes TKEEP_MODE_C /= TKEEP_COUNT_C
+                                        -- Assumes TKEEP_MODE_C /= TKEEP_COUNT_C
       return genTKeep(config.TDATA_BYTES_C);
    end function genTKeep;
 
    function getTKeep (tKeep : slv; axisConfig : AxiStreamConfigType) return natural is
-      variable tKeepFull : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
+      variable tKeepFull : slv(axisConfig.TDATA_BYTES_C-1 downto 0);
       variable retVar    : natural;
       variable i         : natural;
    begin
-      -- Init
+                                        -- Init
       retVar    := 0;
-      tKeepFull := resize(tKeep, AXI_STREAM_MAX_TKEEP_WIDTH_C);
-      -- Check if TKEEP_MODE_C = TKEEP_COUNT_C
+      tKeepFull := resize(tKeep, axisConfig.TDATA_BYTES_C);
+                                        -- Check if TKEEP_MODE_C = TKEEP_COUNT_C
       if (axisConfig.TKEEP_MODE_C = TKEEP_COUNT_C) then
          retVar := conv_integer(tKeep(bitSize(axisConfig.TDATA_BYTES_C)-1 downto 0));
       else
          for i in 0 to axisConfig.TDATA_BYTES_C-1 loop
-            -- report "AxiStreamPkg::genTKeep( i:" & integer'image(i) & ")" severity warning;
-            ----------------------------------------------------
-            -- Confirmed in simulation the for loop ordering is:
-            ----------------------------------------------------
-            -- Warning: AxiStreamPkg::genTKeep( i:0)
-            -- Warning: AxiStreamPkg::genTKeep( i:1)
-            -- Warning: AxiStreamPkg::genTKeep( i:2)
-            -- .....................................
-            -- .....................................
-            ----------------------------------------------------
+                                        -- report "AxiStreamPkg::genTKeep( i:" & integer'image(i) & ")" severity warning;
+                                        ----------------------------------------------------
+                                        -- Confirmed in simulation the for loop ordering is:
+                                        ----------------------------------------------------
+                                        -- Warning: AxiStreamPkg::genTKeep( i:0)
+                                        -- Warning: AxiStreamPkg::genTKeep( i:1)
+                                        -- Warning: AxiStreamPkg::genTKeep( i:2)
+                                        -- .....................................
+                                        -- .....................................
+                                        ----------------------------------------------------
             if (tKeepFull(i) = '1') then
                retVar := (i+1);
             end if;
@@ -400,28 +416,28 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       tData             : in  slv;
-      tKeep             : in  slv                                          := "X";
-      tLast             : in  sl                                           := '0';
-      tDest             : in  slv(7 downto 0)                              := X"00";
-      tId               : in  slv(7 downto 0)                              := X"00";
-      tUser             : in  slv(AXI_STREAM_MAX_TDATA_WIDTH_C-1 downto 0) := (others => '0')) is
+      tKeep             : in  slv := "X";
+      tLast             : in  sl  := '0';
+      tDest             : in  slv := X"00";
+      tId               : in  slv := X"00";
+      tUser             : in  slv := X"00") is
    begin
-      -- Wait for rising edge
+                                        -- Wait for rising edge
       wait until clk = '1';
 
-      -- Set the bus
+                                        -- Set the bus
       master        <= axiStreamMasterInit(CONFIG_C);
       master.tValid <= '1';
-      master.tData  <= resize(tdata, AXI_STREAM_MAX_TDATA_WIDTH_C);
+      master.tData  <= tdata;
       if (tKeep /= "X") then
-         master.tKeep <= resize(tkeep, AXI_STREAM_MAX_TKEEP_WIDTH_C);
+         master.tKeep <= tkeep;
       end if;
       master.tLast <= tlast;
       master.tDest <= tDest;
       master.tId   <= tid;
       master.tUser <= tUser;
 
-      -- Wait for tReady
+                                        -- Wait for tReady
       while (slave.tReady = '0') loop
          wait until clk = '1';
       end loop;
@@ -434,25 +450,25 @@ package body AxiStreamPkg is
       signal master     : in  AxiStreamMasterType;
       signal slave      : out AxiStreamSlaveType;
       tData             : out slv;
-      tKeep             : out slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
+      tKeep             : out slv;
       tLast             : out sl;
-      tDest             : out slv(7 downto 0);
-      tId               : out slv(7 downto 0);
+      tDest             : out slv;
+      tId               : out slv;
       tUser             : out slv) is
    begin
       slave.tready <= '1';
 
-      -- Wait for rising edge
+                                        -- Wait for rising edge
       while (master.tValid = '0') loop
          wait until clk = '1';
       end loop;
-      -- Sample the bus
+                                        -- Sample the bus
       tLast := master.tLast;
-      tData := resize(master.tData, tData'length);
+      tData := master.tData;
       tKeep := master.tKeep;
       tDest := master.tDest;
       tId   := master.tId;
-      tUser := resize(master.tUser, tUser'length);
+      tUser := master.tUser;
 
    end procedure;
 
@@ -462,8 +478,8 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       data              : in  slVectorArray;
-      tUserFirst        : in  slv(7 downto 0) := (others => '0');
-      tUserLast         : in  slv(7 downto 0) := (others => '0'))
+      tUserFirst        : in  slv := X"00";
+      tUserLast         : in  slv := X"00")
    is
       constant DATA_WIDTH_C : natural := data'length(1);
       constant DATA_BYTES_C : natural := wordCount(DATA_WIDTH_C, 8);
@@ -493,8 +509,8 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       data              : in  slv8Array;
-      tUserFirst        : in  slv(7 downto 0) := (others => '0');
-      tUserLast         : in  slv(7 downto 0) := (others => '0'))
+      tUserFirst        : in  slv := X"00";
+      tUserLast         : in  slv := X"00")
    is
       variable vec : SlVectorArray(data'range, data(0)'range);
    begin
@@ -512,8 +528,8 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       data              : in  slv16Array;
-      tUserFirst        : in  slv(7 downto 0) := (others => '0');
-      tUserLast         : in  slv(7 downto 0) := (others => '0'))
+      tUserFirst        : in  slv := X"00";
+      tUserLast         : in  slv := X"00")
    is
       variable vec : SlVectorArray(data'range, data(0)'range);
    begin
@@ -531,8 +547,8 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       data              : in  slv32Array;
-      tUserFirst        : in  slv(7 downto 0) := (others => '0');
-      tUserLast         : in  slv(7 downto 0) := (others => '0'))
+      tUserFirst        : in  slv := X"00";
+      tUserLast         : in  slv := X"00")
    is
       variable vec : SlVectorArray(data'range, data(0)'range);
    begin
@@ -550,8 +566,8 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       data              : in  slv64Array;
-      tUserFirst        : in  slv(7 downto 0) := (others => '0');
-      tUserLast         : in  slv(7 downto 0) := (others => '0'))
+      tUserFirst        : in  slv := X"00";
+      tUserLast         : in  slv := X"00")
    is
       variable vec : SlVectorArray(data'range, data(0)'range);
    begin
@@ -569,8 +585,8 @@ package body AxiStreamPkg is
       signal master     : out AxiStreamMasterType;
       signal slave      : in  AxiStreamSlaveType;
       data              : in  slv128Array;
-      tUserFirst        : in  slv(7 downto 0) := (others => '0');
-      tUserLast         : in  slv(7 downto 0) := (others => '0'))
+      tUserFirst        : in  slv := X"00";
+      tUserLast         : in  slv := X"00")
    is
       variable vec : SlVectorArray(data'range, data(0)'range);
    begin
@@ -586,20 +602,20 @@ package body AxiStreamPkg is
       variable size : integer := 1;
    begin
 
-      -- Data
+                                        -- Data
       size := size + c.TDATA_BYTES_C*8;
 
-      -- Keep
-      size := size + ite((c.TKEEP_MODE_C = TKEEP_NORMAL_C), c.TDATA_BYTES_C,                       -- TKEEP_NORMAL_C
-                     ite((c.TKEEP_MODE_C = TKEEP_COMP_C), bitSize(c.TDATA_BYTES_C-1),              -- TKEEP_COMP_C
-                     ite((c.TKEEP_MODE_C = TKEEP_COUNT_C), bitSize(AXI_STREAM_MAX_TKEEP_WIDTH_C),  -- TKEEP_COUNT_C
-                     0)));  -- TKEEP_FIXED_C
+                                        -- Keep
+      size := size + ite((c.TKEEP_MODE_C = TKEEP_NORMAL_C), c.TDATA_BYTES_C,  -- TKEEP_NORMAL_C
+                         ite((c.TKEEP_MODE_C = TKEEP_COMP_C), bitSize(c.TDATA_BYTES_C-1),  -- TKEEP_COMP_C
+                             ite((c.TKEEP_MODE_C = TKEEP_COUNT_C), bitSize(c.TDATA_BYTES_C),  -- TKEEP_COUNT_C
+                                 0)));  -- TKEEP_FIXED_C
 
-      -- User bits
+                                        -- User bits
       size := size + ite(c.TUSER_MODE_C = TUSER_FIRST_LAST_C, c.TUSER_BITS_C*2,
-                     ite(c.TUSER_MODE_C = TUSER_LAST_C, c.TUSER_BITS_C,
-                     ite(c.TUSER_MODE_C = TUSER_NORMAL_C, c.TDATA_BYTES_C * c.TUSER_BITS_C,
-                     0)));  -- TUSER_NONE_C
+                         ite(c.TUSER_MODE_C = TUSER_LAST_C, c.TUSER_BITS_C,
+                             ite(c.TUSER_MODE_C = TUSER_NORMAL_C, c.TDATA_BYTES_C * c.TUSER_BITS_C,
+                                 0)));  -- TUSER_NONE_C
 
       size := size + ite(c.TSTRB_EN_C, c.TDATA_BYTES_C, 0);  -- Strobe bits
       size := size + c.TDEST_BITS_C;
@@ -615,24 +631,24 @@ package body AxiStreamPkg is
       variable i        : integer              := 0;
    begin
 
-      -- init, pass last
+                                        -- init, pass last
       assignSlv(i, retValue, din.tLast);
 
-      -- Pack data
+                                        -- Pack data
       assignSlv(i, retValue, din.tData((c.TDATA_BYTES_C*8)-1 downto 0));
 
-      -- Pack keep
+                                        -- Pack keep
       if c.TKEEP_MODE_C = TKEEP_NORMAL_C then
          assignSlv(i, retValue, din.tKeep(c.TDATA_BYTES_C-1 downto 0));
       elsif c.TKEEP_MODE_C = TKEEP_COMP_C then
-         -- Assume lsb is present
+                                        -- Assume lsb is present
          assignSlv(i, retValue, toSlv(getTKeep(din.tKeep(c.TDATA_BYTES_C-1 downto 1), c), bitSize(c.TDATA_BYTES_C-1)));
       elsif c.TKEEP_MODE_C = TKEEP_COUNT_C then
-         assignSlv(i, retValue, din.tKeep(bitSize(AXI_STREAM_MAX_TKEEP_WIDTH_C)-1 downto 0));
+         assignSlv(i, retValue, din.tKeep(bitSize(c.TDATA_BYTES_C)-1 downto 0));
       end if;
-      -- TKEEP_FIXED_C uses 0 bits
+                                        -- TKEEP_FIXED_C uses 0 bits
 
-      -- Pack user bits
+                                        -- Pack user bits
       if (c.TUSER_BITS_C > 0 and c.TUSER_MODE_C /= TUSER_NONE_C) then
          if c.TUSER_MODE_C = TUSER_FIRST_LAST_C then
             assignSlv(i, retValue, resize(axiStreamGetUserField(c, din, 0), c.TUSER_BITS_C));  -- First byte
@@ -648,17 +664,17 @@ package body AxiStreamPkg is
          end if;
       end if;
 
-      -- Strobe is optional
+                                        -- Strobe is optional
       if c.TSTRB_EN_C = true then
          assignSlv(i, retValue, din.tStrb(c.TDATA_BYTES_C-1 downto 0));
       end if;
 
-      -- Dest is optional
+                                        -- Dest is optional
       if c.TDEST_BITS_C > 0 then
          assignSlv(i, retValue, din.tDest(c.TDEST_BITS_C-1 downto 0));
       end if;
 
-      -- Id is optional
+                                        -- Id is optional
       if c.TID_BITS_C > 0 then
          assignSlv(i, retValue, din.tId(c.TID_BITS_C-1 downto 0));
       end if;
@@ -674,28 +690,28 @@ package body AxiStreamPkg is
       variable i      : integer                                    := 0;
    begin
 
-      -- Set valid,
+                                        -- Set valid,
       master.tValid := valid;
 
-      -- Set last
+                                        -- Set last
       assignRecord(i, din, master.tLast);
 
-      -- Get data
+                                        -- Get data
       assignRecord(i, din, master.tData((c.TDATA_BYTES_C*8)-1 downto 0));
 
-      -- Get keep bits
+                                        -- Get keep bits
       if c.TKEEP_MODE_C = TKEEP_NORMAL_C then
          assignRecord(i, din, master.tKeep(c.TDATA_BYTES_C-1 downto 0));
       elsif c.TKEEP_MODE_C = TKEEP_COMP_C then
          assignRecord(i, din, keep);
          master.tKeep := genTKeep(conv_integer(keep)+1);
       elsif c.TKEEP_MODE_C = TKEEP_COUNT_C then
-         assignRecord(i, din, master.tKeep(bitSize(AXI_STREAM_MAX_TKEEP_WIDTH_C)-1 downto 0));
+         assignRecord(i, din, master.tKeep(bitSize(c.TDATA_BYTES_C)-1 downto 0));
       else                              -- KEEP_MODE_C = TKEEP_FIXED_C
          master.tKeep := genTKeep(c.TDATA_BYTES_C);
       end if;
 
-      -- get user bits
+                                                                                 -- get user bits
       if (c.TUSER_BITS_C > 0 and c.TUSER_MODE_C /= TUSER_NONE_C) then
          if c.TUSER_MODE_C = TUSER_FIRST_LAST_C then
             assignRecord(i, din, user);
@@ -718,19 +734,19 @@ package body AxiStreamPkg is
          user := (others => '0');
       end if;
 
-      -- Strobe is optional
+                                        -- Strobe is optional
       if c.TSTRB_EN_C = true then
          assignRecord(i, din, master.tStrb(c.TDATA_BYTES_C-1 downto 0));
       else
          master.tStrb := master.tKeep;  -- Strobe follows keep if unused
       end if;
 
-      -- Dest is optional
+                                        -- Dest is optional
       if c.TDEST_BITS_C > 0 then
          assignRecord(i, din, master.tDest(c.TDEST_BITS_C-1 downto 0));
       end if;
 
-      -- ID is optional
+                                        -- ID is optional
       if c.TID_BITS_C > 0 then
          assignRecord(i, din, master.tId(c.TID_BITS_C-1 downto 0));
       end if;

@@ -58,7 +58,7 @@ architecture rtl of AxiStreamMon is
       sizeValid  : sl;
       armed      : sl;
       tValid     : sl;
-      tKeep      : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
+      tKeep      : slv(TKEEP_C-1 downto 0);
       updated    : sl;
       timer      : natural range 0 to TIMEOUT_C;
       accum      : slv(39 downto 0);

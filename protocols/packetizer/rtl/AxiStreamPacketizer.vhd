@@ -212,7 +212,7 @@ begin
                v.outputAxisMaster.tUser := (others => '0');
                v.outputAxisMaster.tDest := (others => '0');
                v.outputAxisMaster.tId   := (others => '0');
-               v.outputAxisMaster.tKeep := resize(x"00FF", AXI_STREAM_MAX_TKEEP_WIDTH_C);
+               v.outputAxisMaster.tKeep := x"00FF";
 
                -- Increment word count with each txn
                v.wordCount := r.wordCount + 1;

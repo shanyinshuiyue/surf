@@ -34,15 +34,15 @@ package SsiPkg is
    constant SSI_TID_BITS_C   : natural  := 0;
    constant SSI_TSTRB_EN_C   : boolean  := false;
 
-   constant SSI_MASTER_FORCE_EOFE_C : AxiStreamMasterType := (
-      tValid => '1',                                   -- Force
-      tData  => (others => '0'),
-      tStrb  => (others => '1'),
-      tKeep  => (others => '1'),
-      tLast  => '1',                                   -- EOF
-      tDest  => (others => '0'),
-      tId    => (others => '0'),
-      tUser  => (others => '1'));  -- EOFE
+--    constant SSI_MASTER_FORCE_EOFE_C : AxiStreamMasterType := (
+--       tValid => '1',                    -- Force
+--       tData  => (others => '0'),
+--       tStrb  => (others => '1'),
+--       tKeep  => (others => '1'),
+--       tLast  => '1',                    -- EOF
+--       tDest  => (others => '0'),
+--       tId    => (others => '0'),
+--       tUser  => (others => '1'));       -- EOFE
 
    -------------------------------------------------------------------------------------------------
    -- Build an SSI configuration
@@ -51,9 +51,9 @@ package SsiPkg is
       dataBytes : positive;
       tKeepMode : TKeepModeType         := TKEEP_COMP_C;
       tUserMode : TUserModeType         := TUSER_FIRST_LAST_C;
-      tDestBits : natural  range 0 to 8 := SSI_TDEST_BITS_C;
+      tDestBits : natural range 0 to 8  := SSI_TDEST_BITS_C;
       tUserBits : positive range 2 to 8 := SSI_TUSER_BITS_C;
-      tIdBits   : natural  range 0 to 8 := SSI_TID_BITS_C)
+      tIdBits   : natural range 0 to 8  := SSI_TID_BITS_C)
       return AxiStreamConfigType;
 
    -- A default SSI config is useful to have
@@ -64,10 +64,10 @@ package SsiPkg is
    -------------------------------------------------------------------------------------------------
    type SsiMasterType is record
       valid  : sl;
-      data   : slv(AXI_STREAM_MAX_TDATA_WIDTH_C-1 downto 0);
-      strb   : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
-      keep   : slv(AXI_STREAM_MAX_TKEEP_WIDTH_C-1 downto 0);
-      dest   : slv(SSI_TDEST_BITS_C-1 downto 0);
+      data   : slv;
+      strb   : slv;
+      keep   : slv;
+      dest   : slv;                     --v(SSI_TDEST_BITS_C-1 downto 0);
       packed : sl;
       sof    : sl;
       eof    : sl;
@@ -150,9 +150,9 @@ package body SsiPkg is
       dataBytes : positive;
       tKeepMode : TKeepModeType         := TKEEP_COMP_C;
       tUserMode : TUserModeType         := TUSER_FIRST_LAST_C;
-      tDestBits : natural  range 0 to 8 := SSI_TDEST_BITS_C;
+      tDestBits : natural range 0 to 8  := SSI_TDEST_BITS_C;
       tUserBits : positive range 2 to 8 := SSI_TUSER_BITS_C;
-      tIdBits   : natural  range 0 to 8 := SSI_TID_BITS_C)
+      tIdBits   : natural range 0 to 8  := SSI_TID_BITS_C)
       return AxiStreamConfigType is
       variable ret : AxiStreamConfigType;
    begin
@@ -184,13 +184,13 @@ package body SsiPkg is
    is
       variable ret : AxiStreamMasterType;
    begin
-      ret                                    := AXI_STREAM_MASTER_INIT_C;
-      ret.tValid                             := ssiMaster.valid;
-      ret.tData                              := ssiMaster.data;
-      ret.tLast                              := ssiMaster.eof;
-      ret.tStrb                              := ssiMaster.strb;
-      ret.tKeep                              := ssiMaster.keep;
-      ret.tDest(SSI_TDEST_BITS_C-1 downto 0) := ssiMaster.dest;
+      ret        := axiStreamMasterInit(axisConfig);
+      ret.tValid := ssiMaster.valid;
+      ret.tData  := ssiMaster.data;
+      ret.tLast  := ssiMaster.eof;
+      ret.tStrb  := ssiMaster.strb;
+      ret.tKeep  := ssiMaster.keep;
+      ret.tDest  := ssiMaster.dest;
       ssiSetUserSof(axisConfig, ret, ssiMaster.sof);
       ssiSetUserEofe(axisConfig, ret, ssiMaster.eofe);
       return ret;
@@ -222,14 +222,14 @@ package body SsiPkg is
       axisMaster : AxiStreamMasterType)
       return SsiMasterType
    is
-      variable ret : SsiMasterType;
+      variable ret : SsiMasterType := ssiMasterInit(axisConfig);
    begin
       ret.valid  := axisMaster.tValid;
       ret.data   := axisMaster.tData;
       ret.strb   := axisMaster.tStrb;
       ret.keep   := axisMaster.tKeep;
       ret.packed := toSl(axiStreamPacked(axisConfig, axisMaster));
-      ret.dest   := axisMaster.tDest(SSI_TDEST_BITS_C-1 downto 0);
+      ret.dest   := axisMaster.tDest;   --(SSI_TDEST_BITS_C-1 downto 0);
       ret.sof    := ssiGetUserSof(axisConfig, axisMaster);
       ret.eof    := axisMaster.tLast;
       ret.eofe   := ssiGetUserEofe(axisConfig, axisMaster);
@@ -255,7 +255,7 @@ package body SsiPkg is
       return SsiMasterType is
       variable ret : SsiMasterType;
    begin
-      ret      := axis2ssiMaster(axisConfig, AXI_STREAM_MASTER_INIT_C);
+      ret      := axis2ssiMaster(axisConfig, axiStreamMasterInit(axisConfig));
       ret.keep := genTKeep(axisConfig.TDATA_BYTES_C);
       return ret;
    end function ssiMasterInit;

@@ -140,7 +140,7 @@ begin
          (SLAVE_AXI_CONFIG_G.TUSER_MODE_C /= TUSER_NONE_C) and
          (MASTER_AXI_CONFIG_G.TUSER_MODE_C /= TUSER_NONE_C) then
          -- Loop through the tUser bit field
-         for i in 0 to AXI_STREAM_MAX_TKEEP_WIDTH_C-1 loop
+         for i in 0 to ibM.tkeep'length-1 loop
             ibM.tUser((i*8)+(SLV_USER_C-1) downto (i*8)) := sAxisMaster.tUser((i*SLV_USER_C)+(SLV_USER_C-1) downto (i*SLV_USER_C));
          end loop;
       end if;
@@ -227,7 +227,7 @@ begin
 
             -- Check for TKEEP_COUNT_C mode on master side only
             elsif (SLAVE_AXI_CONFIG_G.TKEEP_MODE_C /= TKEEP_COUNT_C) and (MASTER_AXI_CONFIG_G.TKEEP_MODE_C = TKEEP_COUNT_C) then
-               pipeAxisMaster.tkeep <= toSlv(getTKeep(sAxisMaster.tKeep, SLAVE_AXI_CONFIG_G), AXI_STREAM_MAX_TKEEP_WIDTH_C);
+               pipeAxisMaster.tkeep <= toSlv(getTKeep(sAxisMaster.tKeep, SLAVE_AXI_CONFIG_G), bitSize(SLAVE_AXI_CONFIG_G.TDATA_BYTES_C));
 
             -- Else both sides are TKEEP_COUNT_C mode
             else
@@ -237,7 +237,7 @@ begin
 
          -- Outbound data with proper user bits
          pipeAxisMaster.tUser <= (others => '0');
-         for i in 0 to AXI_STREAM_MAX_TKEEP_WIDTH_C-1 loop
+         for i in 0 to pipeAxisMaster.tKeep'length-1 loop
             if (SLV_USER_C > MST_USER_C) then
                pipeAxisMaster.tUser((i*MST_USER_C)+(MST_USER_C-1) downto (i*MST_USER_C)) <= ibM.tUser((i*8)+(MST_USER_C-1) downto (i*8));
             else
@@ -253,10 +253,10 @@ begin
          pipeSideBand         <= r.sideBand;
          pipeAxisMaster.tUser <= (others => '0');
          if (MASTER_AXI_CONFIG_G.TKEEP_MODE_C = TKEEP_COUNT_C) then
-            pipeAxisMaster.tKeep <= toSlv(getTKeep(r.obMaster.tKeep, MASTER_AXI_CONFIG_G), AXI_STREAM_MAX_TKEEP_WIDTH_C);
+            pipeAxisMaster.tKeep <= toSlv(getTKeep(r.obMaster.tKeep, MASTER_AXI_CONFIG_G), bitSize(MASTER_AXI_CONFIG_G.TDATA_BYTES_C));
          end if;
 
-         for i in 0 to AXI_STREAM_MAX_TKEEP_WIDTH_C-1 loop
+         for i in 0 to pipeAxisMaster.tkeep'length-1 loop
             pipeAxisMaster.tUser((i*MST_USER_C)+(MST_USER_C-1) downto (i*MST_USER_C)) <= r.obMaster.tUser((i*8)+(MST_USER_C-1) downto (i*8));
          end loop;
       end if;
