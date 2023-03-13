@@ -26,12 +26,13 @@ use surf.TextUtilPkg.all;
 entity AxiLiteCrossbar is
 
    generic (
-      TPD_G              : time                             := 1 ns;
-      NUM_SLAVE_SLOTS_G  : natural range 1 to 16            := 4;
-      NUM_MASTER_SLOTS_G : natural range 1 to 64            := 4;
-      DEC_ERROR_RESP_G   : slv(1 downto 0)                  := AXI_RESP_DECERR_C;
-      MASTERS_CONFIG_G   : AxiLiteCrossbarMasterConfigArray := AXIL_XBAR_CFG_DEFAULT_C;
-      DEBUG_G            : boolean                          := false);
+      TPD_G                : time                             := 1 ns;
+      NUM_SLAVE_SLOTS_G    : natural range 1 to 16            := 4;
+      NUM_MASTER_SLOTS_G   : natural range 1 to 64            := 4;
+      MASTER_PIPE_STAGES_G : natural range 0 to 16            := 0;
+      DEC_ERROR_RESP_G     : slv(1 downto 0)                  := AXI_RESP_DECERR_C;
+      MASTERS_CONFIG_G     : AxiLiteCrossbarMasterConfigArray := AXIL_XBAR_CFG_DEFAULT_C;
+      DEBUG_G              : boolean                          := false);
    port (
       axiClk    : in sl;
       axiClkRst : in sl;
@@ -123,6 +124,11 @@ architecture rtl of AxiLiteCrossbar is
 
    type AxiStatusArray is array (natural range <>) of AxiLiteStatusType;
 
+   -- Pipeline signals
+   signal mPipeAxiWriteSlaves : AxiLiteWriteSlaveArray(NUM_MASTER_SLOTS_G-1 downto 0);
+   signal mPipeAxiReadSlaves  : AxiLiteReadSlaveArray(NUM_MASTER_SLOTS_G-1 downto 0);
+
+
 begin
 
 -- synopsys translate_off
@@ -144,7 +150,7 @@ begin
    end generate printCfg;
 -- synopsys translate_on
 
-   comb : process (axiClkRst, mAxiReadSlaves, mAxiWriteSlaves, r,
+   comb : process (axiClkRst, mPipeAxiReadSlaves, mPipeAxiWriteSlaves, r,
                    sAxiReadMasters, sAxiWriteMasters) is
       variable v            : RegType;
       variable sAxiStatuses : AxiStatusArray(NUM_SLAVE_SLOTS_G-1 downto 0);
@@ -181,7 +187,7 @@ begin
                      -- Check for address match
                      if ((MASTERS_CONFIG_G(m).addrBits = 32)
                          or (
-                            StdMatch(  -- Use std_match to allow dontcares ('-')
+                            StdMatch(   -- Use std_match to allow dontcares ('-')
                                sAxiWriteMasters(s).awaddr(31 downto MASTERS_CONFIG_G(m).addrBits),
                                MASTERS_CONFIG_G(m).baseAddr(31 downto MASTERS_CONFIG_G(m).addrBits))
                             and (MASTERS_CONFIG_G(m).connectivity(s) = '1')))
@@ -230,8 +236,8 @@ begin
                   if (r.slave(s).wrReqNum = m and r.slave(s).wrReqs(m) = '1' and r.master(m).wrAcks(s) = '1') then
 
                      -- Forward write response
-                     v.sAxiWriteSlaves(s).bresp  := mAxiWriteSlaves(m).bresp;
-                     v.sAxiWriteSlaves(s).bvalid := mAxiWriteSlaves(m).bvalid;
+                     v.sAxiWriteSlaves(s).bresp  := mPipeAxiWriteSlaves(m).bresp;
+                     v.sAxiWriteSlaves(s).bvalid := mPipeAxiWriteSlaves(m).bvalid;
 
                      -- bvalid or rvalid indicates txn concluding
                      if (r.sAxiWriteSlaves(s).bvalid = '1' and sAxiWriteMasters(s).bready = '1') then
@@ -253,7 +259,7 @@ begin
                      -- Check for address match
                      if ((MASTERS_CONFIG_G(m).addrBits = 32)
                          or (
-                            StdMatch(  -- Use std_match to allow dontcares ('-')
+                            StdMatch(   -- Use std_match to allow dontcares ('-')
                                sAxiReadMasters(s).araddr(31 downto MASTERS_CONFIG_G(m).addrBits),
                                MASTERS_CONFIG_G(m).baseAddr(31 downto MASTERS_CONFIG_G(m).addrBits))
                             and (MASTERS_CONFIG_G(m).connectivity(s) = '1')))
@@ -298,9 +304,9 @@ begin
                   if (r.slave(s).rdReqNum = m and r.slave(s).rdReqs(m) = '1' and r.master(m).rdAcks(s) = '1') then
 
                      -- Forward read response
-                     v.sAxiReadSlaves(s).rresp  := mAxiReadSlaves(m).rresp;
-                     v.sAxiReadSlaves(s).rdata  := mAxiReadSlaves(m).rdata;
-                     v.sAxiReadSlaves(s).rvalid := mAxiReadSlaves(m).rvalid;
+                     v.sAxiReadSlaves(s).rresp  := mPipeAxiReadSlaves(m).rresp;
+                     v.sAxiReadSlaves(s).rdata  := mPipeAxiReadSlaves(m).rdata;
+                     v.sAxiReadSlaves(s).rvalid := mPipeAxiReadSlaves(m).rvalid;
 
                      -- rvalid indicates txn concluding
                      if (r.sAxiReadSlaves(s).rvalid = '1' and sAxiReadMasters(s).rready = '1') then
@@ -350,10 +356,10 @@ begin
 
                -- Wait for attached slave to respond
                -- Clear *valid signals upon *ready responses
-               if (mAxiWriteSlaves(m).awready = '1') then
+               if (mPipeAxiWriteSlaves(m).awready = '1') then
                   v.mAxiWriteMasters(m).awvalid := '0';
                end if;
-               if (mAxiWriteSlaves(m).wready = '1') then
+               if (mPipeAxiWriteSlaves(m).wready = '1') then
                   v.mAxiWriteMasters(m).wvalid := '0';
                end if;
 
@@ -407,7 +413,7 @@ begin
 
                -- Wait for attached slave to respond
                -- Clear *valid signals upon *ready responses
-               if (mAxiReadSlaves(m).arready = '1') then
+               if (mPipeAxiReadSlaves(m).arready = '1') then
                   v.mAxiReadMasters(m).arvalid := '0';
                end if;
 
@@ -445,8 +451,6 @@ begin
 
       sAxiReadSlaves   <= r.sAxiReadSlaves;
       sAxiWriteSlaves  <= r.sAxiWriteSlaves;
-      mAxiReadMasters  <= r.mAxiReadMasters;
-      mAxiWriteMasters <= r.mAxiWriteMasters;
 
    end process comb;
 
@@ -456,6 +460,25 @@ begin
          r <= rin after TPD_G;
       end if;
    end process seq;
+
+   MASTER_PIPELINES : for i in NUM_MASTER_SLOTS_G-1 downto 0 generate
+      U_AxiLitePipeline_1 : entity surf.AxiLitePipeline
+         generic map (
+            TPD_G    => TPD_G,
+            STAGES_G => MASTER_PIPE_STAGES_G)
+         port map (
+            axiClk          => axiClk,                  -- [in]
+            axiRst          => axiClkRst,               -- [in]
+            sAxiReadMaster  => r.mAxiReadMasters(i),    -- [in]
+            sAxiReadSlave   => mPipeAxiReadSlaves(i),   -- [out]
+            sAxiWriteMaster => r.mAxiWriteMasters(i),   -- [in]
+            sAxiWriteSlave  => mPipeAxiWriteSlaves(i),  -- [out]
+            mAxiReadMaster  => mAxiReadMasters(i),      -- [out]
+            mAxiReadSlave   => mAxiReadSlaves(i),       -- [in]
+            mAxiWriteMaster => mAxiWriteMasters(i),     -- [out]
+            mAxiWriteSlave  => mAxiWriteSlaves(i));     -- [in]
+
+   end generate MASTER_PIPELINES;
 
 end architecture rtl;
 
