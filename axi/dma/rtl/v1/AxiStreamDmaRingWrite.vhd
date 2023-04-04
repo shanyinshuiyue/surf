@@ -247,7 +247,7 @@ architecture rtl of AxiStreamDmaRingWrite is
    signal statusWe     : sl;
    signal statusAddr   : slv(RAM_ADDR_WIDTH_C-1 downto 0);
    signal statusDin    : slv(31 downto 0);
-   
+
 begin
 
    -- Assert that stream config has enough tdest bits for the number of buffers being tracked
@@ -430,7 +430,7 @@ begin
    statusWe   <= r.statusClearEn or r.ramWe;
    statusAddr <= r.statusClearAddr when (r.statusClearEn = '1' and r.ramWe = '0') else r.wrRamAddr;
    statusDin  <= statusRamClear    when (r.statusClearEn = '1' and r.ramWe = '0') else r.status;
-  
+
    -- DMA Write block
    U_AxiStreamDmaWrite_1 : entity surf.AxiStreamDmaWrite
       generic map (
@@ -529,7 +529,7 @@ begin
       if (r.statusClearEn = '1' and r.ramWe = '1') then
          v.statusClearEn := '1';
       end if;
-        
+
 
       case (r.state) is
          when WAIT_TVALID_S =>
@@ -548,7 +548,7 @@ begin
             if r.statusClearEn = '0' then
                v.state     := LATCH_POINTERS_S;
             end if;
-            
+
          when LATCH_POINTERS_S =>
             -- Latch pointers
             v.startAddr := startRamDout;   -- Address of start of buffer
@@ -569,8 +569,8 @@ begin
             -- Direct that frame be dropped if buffer is done with trigger sequence
             -- Writes always start on a BURST_SIZE_BYTES_G boundary, so can drive low dmaReq.address
             -- bits to zero for optimization.
-            v.dmaReq.address(AXI_WRITE_CONFIG_G.ADDR_WIDTH_C-1 downto 0) := nextRamDout;
-            endRamSize := conv_integer(endRamDout - nextRamDout);
+            v.dmaReq.address(AXI_WRITE_CONFIG_G.ADDR_WIDTH_C-1 downto 0) := v.nextAddr;
+            endRamSize := conv_integer(endRamDout - v.nextAddr);
             if FORCE_WRAP_ALIGN_G and endRamSize < BURST_SIZE_BYTES_G then
               v.dmaReq.maxSize := toSlv(endRamSize, 32);
             else
