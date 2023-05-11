@@ -27,202 +27,202 @@ class Lmx2594(pr.Device):
             valueStride  = 32,
             updateNotify = True,
             bulkOpEn     = False, # FALSE for large variables
-            overlapEn    = False,
+            overlapEn    = True,
             verify       = False, # FALSE due to a mix of RO/WO/RW variables
             hidden       = True,
             base         = pr.UInt,
             mode         = "RW",
         ))
 
-        def addLinkVariable(name, description, offset, bitSize, mode, bitOffset=0, pollInterval=0, value=None, hidden=False):
-
-            self.add(pr.LinkVariable(
-                name         = name,
-                description  = description,
-                linkedGet    = lambda var: (self.DataBlock.value(index=offset//4)>>bitOffset)&((2**bitSize)-1),
-                linkedSet    = lambda var, value, write: self.DataBlock.set(value=( (0xFFFF_FFFF ^ (((2**bitSize)-1)<<bitOffset)) & self.DataBlock.get(index=offset//4) ) | (value<<bitOffset),index=offset//4, write=write),
-                mode         = mode,
-                pollInterval = pollInterval,
-                value        = value,
-                hidden       = hidden,
-                disp         = '0x{:x}',
-                dependencies = [self.DataBlock],
-            ))
-
-        ##############################
-        # Link Variables
-        ##############################
-
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'RAMP_EN',
             description = 'frequency ramping mode',
             offset      = (0 << 2),
             bitOffset   = 15,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'VCO_PHASE_SYNC',
             description = 'phase SYNC mode',
             offset      = (0 << 2),
             bitOffset   = 14,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'OUT_MUTE',
             description = 'Mute the outputs when the VCO is calibrating',
             offset      = (0 << 2),
             bitOffset   = 9,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'FCAL_EN',
             description = 'Enable the VCO frequency calibration',
             offset      = (0 << 2),
             bitOffset   = 3,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'MUXOUT_LD_SEL',
             description = 'Selects the state of the function of the MUXout pin',
             offset      = (0 << 2),
             bitOffset   = 2,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'RESET',
             description = 'Resets and holds all state machines and registers to default value',
             offset      = (0 << 2),
             bitOffset   = 1,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'POWERDOWN',
             description = 'Powers down entire device',
             offset      = (0 << 2),
             bitOffset   = 0,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'OUTB_PD',
             description = 'Powers down output B',
             offset      = (44 << 2),
             bitOffset   = 7,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'OUTA_PD',
             description = 'Powers down output A',
             offset      = (44 << 2),
             bitOffset   = 6,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'SYSREF_DIV_PRE',
             description = 'Pre-divider for SYSREF',
             offset      = (71 << 2),
             bitOffset   = 5,
             bitSize     = 3,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'SYSREF_PULSE',
             description = 'Enable pulser mode in master mode',
             offset      = (71 << 2),
             bitOffset   = 4,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'SYSREF_EN',
             description = 'Enable SYSREF',
             offset      = (71 << 2),
             bitOffset   = 3,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'SYSREF_REPEAT',
             description = 'Enable repeater mode',
             offset      = (71 << 2),
             bitOffset   = 2,
             bitSize     = 1,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'SYSREF_DIV',
             description = 'Divider for the SYSREF',
             offset      = (72 << 2),
             bitOffset   = 0,
             bitSize     = 11,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'SYSREF_PULSE_CNT',
             description = 'Number of pulses in pulse mode in master mode',
             offset      = (74 << 2),
             bitOffset   = 12,
             bitSize     = 4,
             mode        = 'RW',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'rb_LD_VTUNE',
             description = 'Readback of Vtune lock detect',
             offset      = (110 << 2),
             bitOffset   = 9,
             bitSize     = 2,
             mode        = 'RO',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'rb_VCO_SEL',
             description = 'Reads back the actual VCO that the calibration has selected.',
             offset      = (110 << 2),
             bitOffset   = 5,
             bitSize     = 3,
             mode        = 'RO',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'rb_VCO_CAPCTRL',
             description = 'Reads back the actual CAPCTRL capcode value the VCO calibration has chosen.',
             offset      = (111 << 2),
             bitOffset   = 0,
             bitSize     = 8,
             mode        = 'RO',
-        )
+            overlapEn   = True,
+        ))
 
-        addLinkVariable(
+        self.add(pr.RemoteVariable(
             name        = 'rb_VCO_DACISET',
             description = 'Reads back the actual amplitude (DACISET) value that the VCO calibration has chosen.',
             offset      = (112 << 2),
             bitOffset   = 0,
             bitSize     = 9,
             mode        = 'RO',
-        )
+            overlapEn   = True,
+        ))
 
         @self.command(description='Load the CodeLoader .HEX file',value='',)
         def LoadCodeLoaderHexFile(arg):
