@@ -90,7 +90,7 @@ class Lmx2594(pr.Device):
             offset      = (0 << 2),
             bitOffset   = 1,
             bitSize     = 1,
-            mode        = 'RW',
+            mode        = 'WO',
             overlapEn   = True,
         ))
 
