@@ -17,6 +17,7 @@ from surf.xilinx._Gthe3Channel        import *
 from surf.xilinx._Gtxe2Channel        import *
 from surf.xilinx._Gtpe2Channel        import *
 from surf.xilinx._Gtpe2Common         import *
+from surf.xilinx._I2cPs               import *
 from surf.xilinx._RfTile              import *
 from surf.xilinx._RfBlock             import *
 from surf.xilinx._RfDataConverter     import *
