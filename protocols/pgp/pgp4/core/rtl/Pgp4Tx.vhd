@@ -19,7 +19,6 @@ use ieee.std_logic_1164.all;
 use ieee.std_logic_unsigned.all;
 use ieee.std_logic_arith.all;
 
-
 library surf;
 use surf.StdRtlPkg.all;
 use surf.AxiStreamPkg.all;
@@ -27,13 +26,13 @@ use surf.SsiPkg.all;
 use surf.Pgp4Pkg.all;
 
 entity Pgp4Tx is
-
    generic (
       TPD_G                    : time                  := 1 ns;
+      RST_ASYNC_G              : boolean               := false;
       -- PGP configuration
       NUM_VC_G                 : integer range 1 to 16 := 1;
       CELL_WORDS_MAX_G         : integer               := 256;  -- Number of 64-bit words per cell
-      -- Mux configuration
+      -- MUX configuration
       MUX_MODE_G               : string                := "INDEXED";  -- Or "ROUTED"
       MUX_TDEST_ROUTES_G       : Slv8Array             := (0 => "--------");  -- Only used in ROUTED mode
       MUX_TDEST_LOW_G          : integer range 0 to 7  := 0;
@@ -55,13 +54,12 @@ entity Pgp4Tx is
       remRxLinkReady : in sl;
 
       -- PHY interface
-      phyTxActive   : in  sl;
-      phyTxReady    : in  sl;
-      phyTxValid    : out sl;
-      phyTxStart    : out sl;
-      phyTxData     : out slv(63 downto 0);
-      phyTxHeader   : out slv(1 downto 0));
-
+      phyTxActive : in  sl;
+      phyTxReady  : in  sl;
+      phyTxValid  : out sl;
+      phyTxStart  : out sl;
+      phyTxData   : out slv(63 downto 0);
+      phyTxHeader : out slv(1 downto 0));
 end entity Pgp4Tx;
 
 architecture rtl of Pgp4Tx is
@@ -80,19 +78,20 @@ architecture rtl of Pgp4Tx is
    signal packetizedTxMaster : AxiStreamMasterType;
    signal packetizedTxSlave  : AxiStreamSlaveType;
 
-   signal phyTxActiveL   : sl;
-   signal protTxValid    : sl;
-   signal protTxReady    : sl;
-   signal protTxStart    : sl;
-   signal protTxData     : slv(63 downto 0);
-   signal protTxHeader   : slv(1 downto 0);
+   signal phyTxActiveL : sl;
+   signal protTxValid  : sl;
+   signal protTxReady  : sl;
+   signal protTxStart  : sl;
+   signal protTxData   : slv(63 downto 0);
+   signal protTxHeader : slv(1 downto 0);
 
 begin
 
-   -- Synchronize remote link and fifo status to tx clock
+   -- Synchronize remote link and FIFO status to TX clock
    U_Synchronizer_REM : entity surf.Synchronizer
       generic map (
-         TPD_G => TPD_G)
+         TPD_G       => TPD_G,
+         RST_ASYNC_G => RST_ASYNC_G)
       port map (
          clk     => pgpTxClk,                              -- [in]
          rst     => pgpTxRst,                              -- [in]
@@ -101,8 +100,9 @@ begin
    REM_STATUS_SYNC : for i in NUM_VC_G-1 downto 0 generate
       U_SynchronizerVector_1 : entity surf.SynchronizerVector
          generic map (
-            TPD_G   => TPD_G,
-            WIDTH_G => 2)
+            TPD_G       => TPD_G,
+            RST_ASYNC_G => RST_ASYNC_G,
+            WIDTH_G     => 2)
          port map (
             clk        => pgpTxClk,                        -- [in]
             rst        => pgpTxRst,                        -- [in]
@@ -112,36 +112,39 @@ begin
             dataOut(1) => syncRemRxFifoCtrl(i).overflow);  -- [out]
    end generate;
 
-   -- Synchronize local rx status
+   -- Synchronize local RX status
    U_Synchronizer_LOC : entity surf.Synchronizer
       generic map (
-         TPD_G => TPD_G)
+         TPD_G       => TPD_G,
+         RST_ASYNC_G => RST_ASYNC_G)
       port map (
-         clk     => pgpTxClk,                              -- [in]
-         rst     => pgpTxRst,                              -- [in]
-         dataIn  => locRxLinkReady,                        -- [in]
-         dataOut => syncLocRxLinkReady);                   -- [out]
+         clk     => pgpTxClk,                           -- [in]
+         rst     => pgpTxRst,                           -- [in]
+         dataIn  => locRxLinkReady,                     -- [in]
+         dataOut => syncLocRxLinkReady);                -- [out]
    LOC_STATUS_SYNC : for i in NUM_VC_G-1 downto 0 generate
       U_Synchronizer_pause : entity surf.Synchronizer
          generic map (
-            TPD_G => TPD_G)
+            TPD_G       => TPD_G,
+            RST_ASYNC_G => RST_ASYNC_G)
          port map (
-            clk     => pgpTxClk,                              -- [in]
-            rst     => pgpTxRst,                              -- [in]
-            dataIn  => locRxFifoCtrl(i).pause,                -- [in]
-            dataOut => syncLocRxFifoCtrl(i).pause);           -- [out]
+            clk     => pgpTxClk,                        -- [in]
+            rst     => pgpTxRst,                        -- [in]
+            dataIn  => locRxFifoCtrl(i).pause,          -- [in]
+            dataOut => syncLocRxFifoCtrl(i).pause);     -- [out]
       U_Synchronizer_overflow : entity surf.SynchronizerOneShot
          generic map (
-            TPD_G => TPD_G)
+            TPD_G       => TPD_G,
+            RST_ASYNC_G => RST_ASYNC_G)
          port map (
-            clk     => pgpTxClk,                              -- [in]
-            rst     => pgpTxRst,                              -- [in]
-            dataIn  => locRxFifoCtrl(i).overflow,             -- [in]
-            dataOut => syncLocRxFifoCtrl(i).overflow);        -- [out]
+            clk     => pgpTxClk,                        -- [in]
+            rst     => pgpTxRst,                        -- [in]
+            dataIn  => locRxFifoCtrl(i).overflow,       -- [in]
+            dataOut => syncLocRxFifoCtrl(i).overflow);  -- [out]
    end generate;
 
    -- Use synchronized remote status to disable channels from mux selection
-   -- All flow control overriden by pgpTxIn 'disable' and 'flowCntlDis'
+   -- All flow control overridden by pgpTxIn 'disable' and 'flowCntlDis'
    DISABLE_SEL : process (pgpTxIn, syncRemRxFifoCtrl) is
    begin
       for i in NUM_VC_G-1 downto 0 loop
@@ -155,34 +158,36 @@ begin
       end loop;
    end process;
 
-   -- Multiplex the incomming tx streams with interleaving
+   -- Multiplex the incoming TX streams with interleaving
    U_AxiStreamMux_1 : entity surf.AxiStreamMux
       generic map (
          TPD_G                => TPD_G,
+         RST_ASYNC_G          => RST_ASYNC_G,
          NUM_SLAVES_G         => NUM_VC_G,
          MODE_G               => MUX_MODE_G,
          PIPE_STAGES_G        => 0,
          TDEST_LOW_G          => MUX_TDEST_LOW_G,
-         ILEAVE_EN_G          => MUX_ILEAVE_EN_G,
+         ILEAVE_EN_G          => ite(NUM_VC_G > 1, MUX_ILEAVE_EN_G, false),  -- Interleave if more than 1 VC
          ILEAVE_ON_NOTVALID_G => MUX_ILEAVE_ON_NOTVALID_G,
          ILEAVE_REARB_G       => CELL_WORDS_MAX_G)
       port map (
-         axisClk      => pgpTxClk,       -- [in]
-         axisRst      => pgpTxRst,       -- [in]
-         disableSel   => disableSel,     -- [in]
-         rearbitrate  => rearbitrate,    -- [in]
-         sAxisMasters => pgpTxMasters,   -- [in]
-         sAxisSlaves  => pgpTxSlaves,    -- [out]
+         axisClk      => pgpTxClk,      -- [in]
+         axisRst      => pgpTxRst,      -- [in]
+         disableSel   => disableSel,    -- [in]
+         rearbitrate  => rearbitrate,   -- [in]
+         sAxisMasters => pgpTxMasters,  -- [in]
+         sAxisSlaves  => pgpTxSlaves,   -- [out]
          mAxisMaster  => muxedTxMaster,  -- [out]
          mAxisSlave   => muxedTxSlave);  -- [in]
 
-   -- Feed muxed stream to packetizer
-   -- Note that the mux is doing the work of chunking
+   -- Feed MUX'd stream to packetizer
+   -- Note that the MUX is doing the work of chunking
    -- Packetizer applies packet formatting and CRC
    -- rearbitrate signal doesn't really do anything (yet)
    U_AxiStreamPacketizer2_1 : entity surf.AxiStreamPacketizer2
       generic map (
          TPD_G                => TPD_G,
+         RST_ASYNC_G          => RST_ASYNC_G,
          CRC_MODE_G           => "DATA",
          CRC_POLY_G           => PGP4_CRC_POLY_C,
          MAX_PACKET_BYTES_G   => CELL_WORDS_MAX_G*8*2,
@@ -202,8 +207,9 @@ begin
    -- Translates Packetizer2 frames, status, and opcodes into unscrambled 64b66b charachters
    U_Pgp4TxProtocol_1 : entity surf.Pgp4TxProtocol
       generic map (
-         TPD_G            => TPD_G,
-         NUM_VC_G         => NUM_VC_G)
+         TPD_G       => TPD_G,
+         RST_ASYNC_G => RST_ASYNC_G,
+         NUM_VC_G    => NUM_VC_G)
       port map (
          pgpTxClk       => pgpTxClk,            -- [in]
          pgpTxRst       => pgpTxRst,            -- [in]
@@ -225,25 +231,26 @@ begin
    U_Scrambler_1 : entity surf.Scrambler
       generic map (
          TPD_G            => TPD_G,
+         RST_ASYNC_G      => RST_ASYNC_G,
          DIRECTION_G      => "SCRAMBLER",
          DATA_WIDTH_G     => 64,
          SIDEBAND_WIDTH_G => 3,
          TAPS_G           => PGP4_SCRAMBLER_TAPS_C)
       port map (
-         clk                        => pgpTxClk,        -- [in]
-         rst                        => phyTxActiveL,    -- [in]
+         clk                        => pgpTxClk,      -- [in]
+         rst                        => phyTxActiveL,  -- [in]
          -- Input Interface
-         inputValid                 => protTxValid,     -- [in]
-         inputReady                 => protTxReady,     -- [out]
-         inputData                  => protTxData,      -- [in]
-         inputSideband(1 downto 0)  => protTxHeader,    -- [in]
-         inputSideband(2)           => protTxStart,     -- [in]
+         inputValid                 => protTxValid,   -- [in]
+         inputReady                 => protTxReady,   -- [out]
+         inputData                  => protTxData,    -- [in]
+         inputSideband(1 downto 0)  => protTxHeader,  -- [in]
+         inputSideband(2)           => protTxStart,   -- [in]
          -- Output Interface
-         outputValid                => phyTxValid,      -- [out]
-         outputReady                => phyTxReady,      -- [in]
-         outputData                 => phyTxData,       -- [out]
-         outputSideband(1 downto 0) => phyTxHeader,     -- [out]
-         outputSideband(2)          => phyTxStart);     -- [out]
+         outputValid                => phyTxValid,    -- [out]
+         outputReady                => phyTxReady,    -- [in]
+         outputData                 => phyTxData,     -- [out]
+         outputSideband(1 downto 0) => phyTxHeader,   -- [out]
+         outputSideband(2)          => phyTxStart);   -- [out]
 
    phyTxActiveL <= not(phyTxActive);
 

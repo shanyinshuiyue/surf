@@ -186,6 +186,50 @@ class ClinkChannel(pr.Device):
             pollInterval = 1,
         ))
 
+        self.add(pr.RemoteVariable(
+            name         = "FrameSize",
+            description  = "Camera Image size",
+            offset       =  0x2C,
+            bitSize      =  32,
+            bitOffset    =  0,
+            disp         = '{}',
+            mode         = "RO",
+            units        = "bytes",
+            pollInterval = 1,
+        ))
+
+        self.add(pr.RemoteVariable(
+            name         = "HSkip",
+            description  = "# of cycle to skip from the start of CLINK LineValid (LV)",
+            offset       =  0x30,
+            bitSize      =  16,
+            mode         = "RW",
+        ))
+
+        self.add(pr.RemoteVariable(
+            name         = "HActive",
+            description  = "# of active cycle after HSkip while CLINK LineValid (LV) is active",
+            offset       =  0x34,
+            bitSize      =  16,
+            mode         = "RW",
+        ))
+
+        self.add(pr.RemoteVariable(
+            name         = "VSkip",
+            description  = "# of lines to skip from the start of CLINK FrameValid (FV)",
+            offset       =  0x38,
+            bitSize      =  16,
+            mode         = "RW",
+        ))
+
+        self.add(pr.RemoteVariable(
+            name         = "VActive",
+            description  = "# of active lines after VSkip while CLINK FrameValid (FV) is active",
+            offset       =  0x3C,
+            bitSize      =  16,
+            mode         = "RW",
+        ))
+
         ##############################################################################
 
         self._rx = None
@@ -207,6 +251,36 @@ class ClinkChannel(pr.Device):
                     expand = False,
                 ))
 
+            # Check for JAI CM-140MCL-UV camera
+            elif (camType=='JaiCm140'):
+
+                # Override defaults
+                self.BaudRate._default = 9600
+                self.SerThrottle._default = 30000
+
+                # Add the device
+                self.add(surf.protocols.clink.UartJaiCm140(
+                    name        = 'UartJaiCm140',
+                    serial      = serial,
+                    expand      = False,
+                ))
+
+
+            # Check for Imperx C1921 camera
+            elif (camType=='ImperxC1921'):
+
+                # Override defaults
+                self.BaudRate._default = 115200
+                self.SerThrottle._default = 10000
+
+                # Add the device
+                self.add(surf.protocols.clink.UartImperxC1921(
+                    name        = 'UartImperxC1921',
+                    serial      = serial,
+                    expand      = False,
+                ))
+
+
             # Check for OPA1000 camera
             elif (camType=='Opal1000'):
 
@@ -223,6 +297,9 @@ class ClinkChannel(pr.Device):
             # Check for Piranha4 camera
             elif (camType=='Piranha4'):
 
+                # Override defaults
+                self.BaudRate._default = 9600
+
                 # Add the device
                 self.add(surf.protocols.clink.UartPiranha4(
                     name        = 'UartPiranha4',
@@ -234,6 +311,7 @@ class ClinkChannel(pr.Device):
             elif (camType=='Up900cl12b'):
 
                 # Override defaults
+                self.BaudRate._default = 9600
                 self.SerThrottle._default = 30000
 
                 # Add the device

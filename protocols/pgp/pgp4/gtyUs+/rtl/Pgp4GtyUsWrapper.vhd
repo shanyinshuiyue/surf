@@ -32,6 +32,7 @@ entity Pgp4GtyUsWrapper is
    generic (
       TPD_G                       : time                        := 1 ns;
       ROGUE_SIM_EN_G              : boolean                     := false;
+      ROGUE_SIM_SIDEBAND_G        : boolean                     := true;
       ROGUE_SIM_PORT_NUM_G        : natural range 1024 to 49151 := 9000;
       SYNTH_MODE_G                : string                      := "inferred";
       MEMORY_TYPE_G               : string                      := "block";
@@ -57,6 +58,8 @@ entity Pgp4GtyUsWrapper is
       WRITE_EN_G                  : boolean                     := true;  -- Set to false when on remote end of a link
       TX_POLARITY_G               : slv(3 downto 0)             := x"0";
       RX_POLARITY_G               : slv(3 downto 0)             := x"0";
+      STATUS_CNT_WIDTH_G          : natural range 1 to 32       := 16;
+      ERROR_CNT_WIDTH_G           : natural range 1 to 32       := 8;
       AXIL_BASE_ADDR_G            : slv(31 downto 0)            := (others => '0');
       AXIL_CLK_FREQ_G             : real                        := 125.0E+6);
    port (
@@ -227,6 +230,8 @@ begin
                TX_POLARITY_G               => TX_POLARITY_G(i),
                RX_POLARITY_G               => RX_POLARITY_G(i),
                AXIL_BASE_ADDR_G            => XBAR_CONFIG_C(i).baseAddr,
+               STATUS_CNT_WIDTH_G          => STATUS_CNT_WIDTH_G,
+               ERROR_CNT_WIDTH_G           => ERROR_CNT_WIDTH_G,
                AXIL_CLK_FREQ_G             => AXIL_CLK_FREQ_G)
             port map (
                -- Stable Clock and Reset
@@ -271,13 +276,14 @@ begin
 
    SIM_PGP : if (ROGUE_SIM_EN_G) generate
       GEN_LANE : for i in NUM_LANES_G-1 downto 0 generate
-         U_Rogue : entity surf.RoguePgp3Sim -- Same IP core for both PGPv3 and PGPv4
+         U_Rogue : entity surf.RoguePgp4Sim
             generic map(
-               TPD_G      => TPD_G,
+               TPD_G         => TPD_G,
                SYNTH_MODE_G  => SYNTH_MODE_G,
                MEMORY_TYPE_G => MEMORY_TYPE_G,
-               PORT_NUM_G => (ROGUE_SIM_PORT_NUM_G+(i*34)),
-               NUM_VC_G   => NUM_VC_G)
+               PORT_NUM_G    => (ROGUE_SIM_PORT_NUM_G+(i*34)),
+               EN_SIDEBAND_G => ROGUE_SIM_SIDEBAND_G,
+               NUM_VC_G      => NUM_VC_G)
             port map(
                -- GT Ports
                pgpRefClk       => pgpRefClk,
