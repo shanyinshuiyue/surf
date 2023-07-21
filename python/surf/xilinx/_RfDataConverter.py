@@ -14,12 +14,15 @@
 #-----------------------------------------------------------------------------
 
 import pyrogue as pr
-import surf.xilinx
+import surf.xilinx as xil
+import time
 
 class RfDataConverter(pr.Device):
     def __init__(
             self,
-            gen3 = True, # True if using RFSoC GEN3 Hardware
+            gen3      = True, # True if using RFSoC GEN3 Hardware
+            enAdcTile = [True,True,True,True],
+            enDacTile = [True,True,True,True],
             **kwargs):
         super().__init__(**kwargs)
 
@@ -103,19 +106,46 @@ class RfDataConverter(pr.Device):
         ))
 
         for i in range(4):
-            self.add(surf.xilinx.RfTile(
-                name    = f'dacTile[{i}]',
-                isAdc   = False,
-                gen3    = gen3,
-                offset  = 0x04000 + 0x4000*i,
-                expand  = False,
-            ))
+            if enDacTile[i]:
+                self.add(xil.RfTile(
+                    name    = f'dacTile[{i}]',
+                    isAdc   = False,
+                    gen3    = gen3,
+                    offset  = 0x04000 + 0x4000*i,
+                    expand  = False,
+                ))
 
         for i in range(4):
-            self.add(surf.xilinx.RfTile(
-                name    = f'adcTile[{i}]',
-                isAdc   = True,
-                gen3    = gen3,
-                offset  = 0x14000 + 0x4000*i,
-                expand  = False,
-            ))
+            if enAdcTile[i]:
+                self.add(xil.RfTile(
+                    name    = f'adcTile[{i}]',
+                    isAdc   = True,
+                    gen3    = gen3,
+                    offset  = 0x14000 + 0x4000*i,
+                    expand  = False,
+                ))
+
+    def Init(self, dynamicNco=False):
+
+        # Useful pointers
+        rfTile = self.find(typ=xil.RfTile)
+
+        # Reset the RF Data Converter
+        for tile in rfTile:
+            tile.RestartStateStart.set(0)
+            tile.RestartStateEnd.set(15)
+            tile.RestartSM.set(0x1)
+        self.Reset.set(0x1)
+        time.sleep(0.2)
+        for tile in rfTile:
+            tile.RestartSM.set(0x1)
+            while tile.RestartStateEnd.get() != 15:
+                time.sleep(0.1)
+        self.Reset.set(0x1)
+        time.sleep(0.2)
+
+        # Check for dynamic NCO
+        if dynamicNco:
+            # Change the RestartStateStart for dynamic NCO changes
+            for tile in rfTile:
+                tile.RestartStateStart.setDisp('Clock_Configuration[0]')
