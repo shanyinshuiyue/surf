@@ -1,0 +1,141 @@
+#   vsg surf custom rules config
+#       vsg-surf-config.yml
+#
+#       7-28-23
+#
+
+
+
+
+rule:
+
+    #global controls
+    global:
+        indentSize: 3   #set global indent size to 3 spaces
+        disable: true   #disable all rules
+
+        
+    #group controls
+    group:
+        indent:             #all indent rules
+            disable: false
+
+        case::keyword:      #rules forcing VHDL keywords to be lowercase 
+            disable: false
+
+        case::name:         #rules for various naming conventions, many try to force lowercase for names that should be camel
+            disable: true
+
+        alignment:          #rules for horizontal alignment
+            disable: false
+            compact_alignment: false        #forces alignment to be as far left as possible
+
+        structure:          #rules for general code structure
+            disable: false  #often strict so disabled for now
+            action: 'move_left'     #have closing parenthesis on last line rather than new line (ex. in ports)
+            first_paren_new_line: 'ignore'
+            last_paren_new_line: 'ignore'
+
+        structure::optional:    #extra structure rules I will have to look more into
+            disable: true
+
+        naming:             #rules are for very different naming schem
+            disable: true
+            
+        whitespace:         #this plus blank_line have very strict formating 
+            disable: true
+            
+        blank_line:
+            disable: true
+            
+        block_comment:
+            disable: true
+            
+    #individual rule controls
+    
+    #indent rules
+    library_008:            #checks for indent before "use"
+        disable: true
+
+    comment_010:            #rule to align comments with the indent of the next line
+        severity: 'Warning'     #useful in most cases, but sometimes incorrectly thrown for commented out lines
+
+
+    #case rules
+    generic_007:            #rule for checking generic case
+        disable: false 
+        case: 'upper'           #set to upper, default lower
+
+    constant_004:           #rule for checking constant case
+        disable: false 
+        case: 'upper'           #set to upper, default lower
+
+    generic_600:            #rule for generic suffixes
+        disable: false 
+        suffixes: ['_G']        #accepted suffixes list
+
+    constant_600:           #rule for constant suffixes
+        disable: false 
+        suffixes: ['_C']        #accepted suffixes list
+ 
+    exponent_500:           #rule for case of 'E' vs 'e' in exponents
+        case: 'upper'
+
+
+    #alignment rules
+    constant_012:           #checks alignment of comments
+        disable: true           #incorrectly thrown often (based off of format being a certain way from other rules)
+
+    entity_020:             #checks alignment of comments on the same block
+        disable: true           #could be enabled             ******************************************
+
+    architecture_029:       #handles alignment of names inside architectures
+        disable: true           #SLAC doesn't follow
+    
+    
+    #structure rules
+    signal_007:             #flags default assignments, slac seems to use them a lot
+        disable: true
+
+    whitespace_200:         #sets a maximum number of consecutive blank lines 
+        disable: false      
+        blank_lines_allowed: 3  #set to 3
+
+    after_003:              #checks the after keywords do not exist in the reset portion of a clock process
+        disable: true
+
+    process_029:            #checks for the format of clock definitions in clock processes
+        clock: 'edge'           #set to enforce edge definition
+
+    comment_011:            #moves in-line comments to the line above
+        disable: true           #disable by default, gets enagled with the structure group
+
+    process_018:            #checks that end process has a label
+        disable: true
+        
+    process_016:            #checks for process beginning label
+        disable: true
+
+    port_012:               #rule checks for default assignments on ports
+        disable: true
+
+    type_008:               #rule for checking the closing paranthesis of type has its own line
+        disable: true           #SLAC does not do
+
+    if_002:                 #checks for parentheses around 'if' argument 
+        disable: false
+
+    if_003:                 #checks for space before 'if' argument
+        disable: false
+
+    if_004:                 #checks for space after 'if' argument
+        disable: false
+
+    if_005:                 #checks for space between elif and arguiment
+        disable: false
+
+    instantiation_034:      #rule check for component vs direct instantiation
+        disable: true
+
+
+
